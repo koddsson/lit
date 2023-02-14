@@ -38,7 +38,7 @@ export const masonry: MasonryLayoutSpecifierFactory = (
     config
   );
 
-type RangeMapEntry = [number, number];
+type RangeMapEntry = [number, number, number, number];
 
 const MIN = 'MIN';
 const MAX = 'MAX';
@@ -122,10 +122,17 @@ export class MasonryLayout extends GridBaseLayout<MasonryLayoutConfig> {
         maxRangeMapKey = lastRangeMapKey;
       }
       for (let n = firstRangeMapKey; n <= lastRangeMapKey; n += G) {
-        const [minIdx, maxIdx] = this._rangeMap.get(n) ?? [Infinity, -Infinity];
-        this._rangeMap.set(n, [Math.min(idx, minIdx), Math.max(idx, maxIdx)]);
+        const [minIdx, maxIdx, minExtent, maxExtent] = this._rangeMap.get(
+          n
+        ) ?? [Infinity, -Infinity, Infinity, -Infinity];
+        this._rangeMap.set(n, [
+          Math.min(idx, minIdx),
+          Math.max(idx, maxIdx),
+          Math.min(pos1, minExtent),
+          Math.max(max1, maxExtent),
+        ]);
       }
-      virtualizerSize = max1 + padding1.end;
+      virtualizerSize = Math.max(virtualizerSize, max1 + padding1.end);
       nextPosPerRolumn[nextRolumn] += size1 + gap1;
       nextPos = Infinity;
       nextPosPerRolumn.forEach((pos, rolumn) => {
@@ -137,7 +144,7 @@ export class MasonryLayout extends GridBaseLayout<MasonryLayoutConfig> {
     });
     if (minRangeMapKey !== Infinity) {
       for (let n = 0; n < minRangeMapKey; n += G) {
-        this._rangeMap.set(n, [-1, -1]);
+        this._rangeMap.set(n, [-1, -1, 0, 0]);
       }
     }
     if (maxRangeMapKey !== -Infinity) {
@@ -163,11 +170,22 @@ export class MasonryLayout extends GridBaseLayout<MasonryLayoutConfig> {
         this._virtualizerSize,
         this._blockScrollPosition + this._viewDim1 + this._overhang
       );
-      this._first =
-        this._rangeMap.get(this._getRangeMapKey(min, MIN))?.[0] ?? 0;
-      this._last =
-        this._rangeMap.get(this._getRangeMapKey(max, MAX))?.[1] ??
-        this.items.length - 1;
+      const firstRangeMapEntry = this._rangeMap.get(
+        this._getRangeMapKey(min, MIN)
+      );
+      const lastRangeMapEntry = this._rangeMap.get(
+        this._getRangeMapKey(max, MAX)
+      );
+      if (firstRangeMapEntry && lastRangeMapEntry) {
+        this._first = firstRangeMapEntry[0];
+        this._physicalMin = this._first === 0 ? 0 : firstRangeMapEntry[2];
+        this._last = lastRangeMapEntry[1];
+        this._physicalMax = lastRangeMapEntry[3];
+      } else {
+        throw new Error(
+          'Masonry layout error: no layout info for current scroll coordinates'
+        );
+      }
     }
   }
 
