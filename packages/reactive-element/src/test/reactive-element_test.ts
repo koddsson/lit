@@ -3202,7 +3202,7 @@ suite('ReactiveElement', () => {
           changedProperties.set('foo', 'hi');
 
           // This should type-check without a cast:
-          const x: number = changedProperties.get('foo');
+          const x: number | undefined = changedProperties.get('foo');
           changedProperties.set('foo', 2);
 
           // This should type-check without a cast:
@@ -3264,7 +3264,7 @@ suite('ReactiveElement', () => {
     class A extends ReactiveElement {
       foo!: number;
       override update(changedProperties: PropertyValues<A>) {
-        const n: number = changedProperties.get('foo');
+        const n: number | undefined = changedProperties.get('foo');
         if (n) {
           //Suppress no-unused-vars warnings
         }
@@ -3273,7 +3273,7 @@ suite('ReactiveElement', () => {
     class B extends A {
       bar!: string;
       override update(changedProperties: PropertyValues<B>) {
-        const s: string = changedProperties.get('bar');
+        const s: string | undefined = changedProperties.get('bar');
         if (s) {
           //Suppress no-unused-vars warnings
         }
