@@ -3,7 +3,7 @@ import {
   OptimizationLevel,
   optimizationLevelFrom,
 } from 'clean-css/lib/options/optimization-level.js';
-import {Options as HTMLOptions, minify} from 'html-minifier';
+import {Options as HTMLOptions, minify} from 'html-minifier-terser';
 import {TemplatePart} from './models.js';
 
 /**
@@ -42,7 +42,7 @@ export interface Strategy<O = unknown, C = unknown> {
    * @param options html minify options
    * @returns minified HTML string
    */
-  minifyHTML(html: string, options?: O): string;
+  minifyHTML(html: string, options?: O): Promise<string>;
   /**
    * Minifies the provided CSS string.
    *
@@ -109,7 +109,7 @@ export const defaultStrategy: Strategy<HTMLOptions, CleanCSS.Options> = {
   combineHTMLStrings(parts, placeholder) {
     return parts.map((part) => part.text).join(placeholder);
   },
-  minifyHTML(html, options = {}) {
+  async minifyHTML(html, options = {}) {
     let minifyCSSOptions: HTMLOptions['minifyCSS'];
     if (options.minifyCSS) {
       if (
@@ -131,7 +131,7 @@ export const defaultStrategy: Strategy<HTMLOptions, CleanCSS.Options> = {
       adjustedMinifyCSSOptions = adjustMinifyCSSOptions(minifyCSSOptions);
     }
 
-    let result = minify(html, {
+    let result = await minify(html, {
       ...options,
       minifyCSS: adjustedMinifyCSSOptions,
     });

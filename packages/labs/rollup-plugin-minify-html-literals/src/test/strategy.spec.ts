@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {minify} from 'html-minifier';
+import {minify} from 'html-minifier-terser';
 import {defaultMinifyOptions, defaultStrategy} from '../lib/strategy.js';
 import {TemplatePart} from '../lib/models.js';
 
@@ -56,9 +56,9 @@ describe('strategy', () => {
         expect(twoUnderscores).to.include('__');
       });
 
-      it('should return a value that is preserved by html-minifier when splitting', () => {
+      it('should return a value that is preserved by html-minifier when splitting', async () => {
         const placeholder = defaultStrategy.getPlaceholder(parts);
-        const minHtml = defaultStrategy.minifyHTML(
+        const minHtml = await defaultStrategy.minifyHTML(
           `
           <style>
             ${placeholder}
@@ -97,7 +97,7 @@ describe('strategy', () => {
     });
 
     describe('minifyHTML()', () => {
-      it('should call minify() with html and options', () => {
+      it('should call minify() with html and options', async () => {
         const placeholder = defaultStrategy.getPlaceholder(parts);
         const html = `
           <style>${placeholder}</style>
@@ -107,9 +107,9 @@ describe('strategy', () => {
           </ul>
         `;
 
-        expect(defaultStrategy.minifyHTML(html, defaultMinifyOptions)).to.equal(
-          minify(html, defaultMinifyOptions)
-        );
+        expect(
+          await defaultStrategy.minifyHTML(html, defaultMinifyOptions)
+        ).to.equal(await minify(html, defaultMinifyOptions));
       });
     });
 

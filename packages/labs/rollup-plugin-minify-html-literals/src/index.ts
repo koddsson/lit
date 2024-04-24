@@ -1,4 +1,10 @@
-import {Plugin, SourceDescription, TransformHook, PluginContext} from 'rollup';
+import {
+  Plugin,
+  SourceDescription,
+  TransformHook,
+  PluginContext,
+  TransformResult,
+} from 'rollup';
 import {createFilter} from 'rollup-pluginutils';
 import * as minify from './lib/minify-html-literals.js';
 
@@ -49,26 +55,32 @@ export default function (
 
   return {
     name: 'minify-html-literals',
+    // @ts-expect-error TODO
     transform(this: PluginContext, code: string, id: string) {
-      if (options.filter!(id)) {
-        try {
-          return <SourceDescription>options.minifyHTMLLiterals!(code, {
-            ...minifyOptions,
-            fileName: id,
-          });
-        } catch (error) {
-          // check if Error else treat as string
-          const message =
-            error instanceof Error ? error.message : (error as string);
+      return new Promise<TransformResult>((resolve) => {
+        if (options.filter!(id)) {
+          try {
+            resolve(
+              // @ts-expect-error TODO
+              <SourceDescription>options.minifyHTMLLiterals!(code, {
+                ...minifyOptions,
+                fileName: id,
+              })
+            );
+          } catch (error) {
+            // check if Error else treat as string
+            const message =
+              error instanceof Error ? error.message : (error as string);
 
-          if (options.failOnError) {
-            this.error(message);
-          } else {
-            this.warn(message);
+            if (options.failOnError) {
+              this.error(message);
+            } else {
+              this.warn(message);
+            }
           }
         }
-      }
-      return;
+        resolve();
+      });
     },
   };
 }
