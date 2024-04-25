@@ -296,51 +296,68 @@ export async function minifyHTMLLiterals(
   for (const template of templates) {
     const minifyHTML = shouldMinify(template);
     const minifyCSS = !!strategy.minifyCSS && shouldMinifyCSS(template);
-    if (minifyHTML || minifyCSS) {
+    if (minifyHTML) {
       const placeholder = strategy.getPlaceholder(template.parts);
       if (validate) {
         validate.ensurePlaceholderValid(placeholder);
       }
 
       const combined = strategy.combineHTMLStrings(template.parts, placeholder);
-      let min: string;
-      if (minifyCSS) {
-        const minifyCSSOptions = (
-          (options as DefaultOptions).minifyOptions || {}
-        ).minifyCSS;
-        if (typeof minifyCSSOptions === 'function') {
-          min = minifyCSSOptions(combined);
-        } else if (minifyCSSOptions === false) {
-          min = combined;
-        } else {
-          const cssOptions =
-            typeof minifyCSSOptions === 'object' ? minifyCSSOptions : undefined;
-          min = strategy.minifyCSS!(combined, cssOptions);
-          // FOLLOW 2: The reason why the parts aren't the same is because of the semicolon in the placeholder that's used
-          // to split up the template literal into parts and then combine it back together. The number of parts before and
-          // after minifying the CSS need to be the same or something weird has happened.
-          //
-          // The weird thing happenign with the semicolon in the placeholder is that we are sending invalid CSS into the
-          // minifier that then tries it's best to parse it. The semicolon in the placeholder makes the parse think that
-          // the property value has ended. But consider the following code:
-          //
-          // ```css
-          //     .footer {
-          //        margin: @TEMPLATE_EXPRESSION(); 0;
-          //     }
-          //
-          // This is the code after the template literal varibables have been replaced with a placeholder. But note the
-          // semicolon after the placeholder. It makes the CSS minifier think that the property value is done, but there's
-          // Still a missing `0` after it.
-          //
-          // We need to tackle this issue.
-          console.log({combined, min});
+      const min = await strategy.minifyHTML(combined, options.minifyOptions);
+
+      const minParts = strategy.splitHTMLByPlaceholder(min, placeholder);
+      if (validate) {
+        validate.ensureHTMLPartsValid(template.parts, minParts);
+      }
+
+      template.parts.forEach((part, index) => {
+        if (part.start < part.end) {
+          // Only overwrite if the literal part has text content
+          ms.overwrite(part.start, part.end, minParts[index]);
         }
+      });
+    } else if (minifyCSS) {
+      const placeholder =
+        'TEMPLATE_EXPRESSION' || strategy.getPlaceholder(template.parts);
+      if (validate) {
+        validate.ensurePlaceholderValid(placeholder);
+      }
+
+      const combined = strategy.combineHTMLStrings(template.parts, placeholder);
+      let min: string;
+      const minifyCSSOptions = ((options as DefaultOptions).minifyOptions || {})
+        .minifyCSS;
+      if (typeof minifyCSSOptions === 'function') {
+        min = minifyCSSOptions(combined);
+      } else if (minifyCSSOptions === false) {
+        min = combined;
       } else {
-        min = await strategy.minifyHTML(combined, options.minifyOptions);
+        const cssOptions =
+          typeof minifyCSSOptions === 'object' ? minifyCSSOptions : undefined;
+        min = strategy.minifyCSS!(combined, cssOptions);
+        // FOLLOW 2: The reason why the parts aren't the same is because of the semicolon in the placeholder that's used
+        // to split up the template literal into parts and then combine it back together. The number of parts before and
+        // after minifying the CSS need to be the same or something weird has happened.
+        //
+        // The weird thing happenign with the semicolon in the placeholder is that we are sending invalid CSS into the
+        // minifier that then tries it's best to parse it. The semicolon in the placeholder makes the parse think that
+        // the property value has ended. But consider the following code:
+        //
+        // ```css
+        //     .footer {
+        //        margin: @TEMPLATE_EXPRESSION(); 0;
+        //     }
+        //
+        // This is the code after the template literal varibables have been replaced with a placeholder. But note the
+        // semicolon after the placeholder. It makes the CSS minifier think that the property value is done, but there's
+        // Still a missing `0` after it.
+        //
+        // We need to tackle this issue.
+        console.log({combined, min});
       }
 
       const minParts = strategy.splitHTMLByPlaceholder(min, placeholder);
+
       if (validate) {
         validate.ensureHTMLPartsValid(template.parts, minParts);
       }
